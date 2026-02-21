@@ -193,20 +193,46 @@ def gerar_imagem_cliente_segura(prompt_bruto):
         return None
 
 def transcrever_audio_para_texto(audio_file):
-    with st.spinner("🎧 Transcrevendo sua voz..."):
+    """Nova versão usando File API para suportar iOS e Android perfeitamente"""
+    with st.spinner("🎧 Processando áudio e transcrevendo..."):
+        temp_path = None
+        arquivo_gemini = None
         try:
             if not MODELO_NOME:
                 return "Erro: Nenhum modelo encontrado."
                 
+            # 1. Salva o áudio do celular em um arquivo temporário no servidor
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
+                temp_audio.write(audio_file.getvalue())
+                temp_path = temp_audio.name
+
+            # 2. Faz o upload oficial via File API do Gemini (resolve incompatibilidade mobile)
+            arquivo_gemini = genai.upload_file(path=temp_path)
+
+            # 3. Usa o modelo para decodificar
             model = genai.GenerativeModel(MODELO_NOME)
+            
+            # 4. Pede a transcrição usando o arquivo anexado
             res = model.generate_content([
-                "Transcreva este áudio de atendimento de farmácia. Retorne APENAS o texto exato que foi falado, sem aspas.",
-                {"mime_type": "audio/wav", "data": audio_file.getvalue()}
+                "Transcreva este áudio de atendimento de farmácia. Retorne APENAS o texto exato que foi falado, sem aspas, comentários ou formatação.",
+                arquivo_gemini
             ])
+            
             return res.text.strip()
+
         except Exception as e:
-            st.error(f"Erro na transcrição: {e}")
+            st.error(f"Erro detalhado na transcrição: {e}")
             return None
+            
+        finally:
+            # 5. Faxina: apaga o arquivo temporário do Streamlit e da nuvem do Google
+            try:
+                if arquivo_gemini:
+                    genai.delete_file(arquivo_gemini.name)
+                if temp_path and os.path.exists(temp_path):
+                    os.remove(temp_path)
+            except:
+                pass
 
 def gerar_audio_cliente(texto, prompt_imagem=""):
     try:
@@ -321,7 +347,7 @@ if colaborador != "Clique aqui para selecionar...":
                 with col_txt:
                     st.markdown(f"""<div class="cliente-box"><div class="chat-label">🗣️ CLIENTE:</div><div class="chat-texto">"{msg['text']}"</div></div>""", unsafe_allow_html=True)
                     if "audio" in msg and msg["audio"]:
-                        # SOLUÇÃO MOBILE: Retirado o autoplay=True. O áudio aparece e o usuário aperta Play!
+                        # Sem autoplay: O usuário dá o play na tela do celular
                         st.audio(msg["audio"], format="audio/mp3")
             else:
                 st.markdown(f"""<div class="vendedor-box"><div class="chat-label">🧑‍⚕️ {colaborador.upper()}:</div><div class="chat-texto">{msg['text']}</div></div>""", unsafe_allow_html=True)
