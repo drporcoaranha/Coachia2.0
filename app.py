@@ -167,9 +167,34 @@ def salvar_sessao(dados):
 
 @st.cache_resource
 def encontrar_modelo():
-    """Força o uso do 1.5-flash para aproveitar a cota gratuita maior e evitar erro 429"""
+    """Busca dinamicamente o modelo 1.5 exato disponível na sua chave para evitar erro 404 e 429"""
     if not API_KEY: return None
-    return "gemini-1.5-flash"
+    try:
+        # Puxa a lista oficial e exata de modelos que a SUA chave pode usar
+        modelos_disponiveis = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
+        if not modelos_disponiveis: 
+            return None
+
+        # 1. Prioridade Máxima: Acha a versão exata do 1.5 Flash (cota alta)
+        for m in modelos_disponiveis:
+            if "1.5-flash" in m: 
+                return m
+                
+        # 2. Plano B: Se não achar o flash, pega qualquer versão do 1.5 (Pro, etc)
+        for m in modelos_disponiveis:
+            if "1.5" in m:
+                return m
+
+        # 3. Plano C: Pega o primeiro modelo válido da lista que não seja o 2.5 (cota baixa)
+        for m in modelos_disponiveis:
+            if "2.5" not in m:
+                return m
+                
+        # 4. Último caso: Usa o que o Google mandar
+        return modelos_disponiveis[0]
+    except: 
+        return None
 
 MODELO_NOME = encontrar_modelo()
 
@@ -464,3 +489,4 @@ if colaborador != "Clique aqui para selecionar...":
                     st.session_state.feedback = ""
                     st.session_state.imagem_cliente = None
                     st.rerun()
+
