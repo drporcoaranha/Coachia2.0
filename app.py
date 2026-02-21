@@ -10,6 +10,7 @@ import urllib.parse
 import tempfile
 import asyncio
 import edge_tts
+import requests
 
 # --- CONFIGURAÇÃO DA CHAVE DE API (SEGURA) ---
 try:
@@ -73,10 +74,6 @@ st.markdown("""
         text-align: center;
         color: #555;
         margin-bottom: 20px;
-    }
-    .avatar-cliente {
-        border-radius: 50%;
-        border: 2px solid #ff4b4b;
     }
     [data-testid="stImage"] img {
         border-radius: 15px;
@@ -169,23 +166,35 @@ def salvar_sessao(dados):
 
 @st.cache_resource
 def encontrar_modelo():
-    """Busca dinamicamente o modelo correto disponível na API Key do usuário"""
     if not API_KEY: return None
     try:
         modelos = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         if not modelos: return None
-        
-        # Tenta priorizar modelos da família Flash (rápidos e bons para áudio)
         for m in modelos:
             if "1.5-flash" in m: return m
         for m in modelos:
             if "flash" in m: return m
-            
-        return modelos[0] # Se não achar o Flash, usa o primeiro que suportar geração de conteúdo
+        return modelos[0]
     except: 
         return None
 
 MODELO_NOME = encontrar_modelo()
+
+def gerar_imagem_cliente_segura(prompt_bruto):
+    """Gera a imagem e baixa os bytes para evitar falha de renderização no navegador"""
+    try:
+        prompt_formatado = urllib.parse.quote(prompt_bruto + " looking at camera")
+        seed = random.randint(1, 100000)
+        url = f"https://image.pollinations.ai/prompt/{prompt_formatado}?seed={seed}&width=300&height=300&nologo=true"
+        
+        # Faz o download da imagem nos bastidores
+        resposta = requests.get(url, timeout=15)
+        if resposta.status_code == 200:
+            return resposta.content
+        else:
+            return None
+    except Exception as e:
+        return None
 
 def transcrever_audio_para_texto(audio_file):
     with st.spinner("🎧 Transcrevendo sua voz..."):
@@ -193,7 +202,6 @@ def transcrever_audio_para_texto(audio_file):
             if not MODELO_NOME:
                 return "Erro: Nenhum modelo de IA encontrado para transcrição."
                 
-            # AGORA USA O MODELO ENCONTRADO DINAMICAMENTE
             model = genai.GenerativeModel(MODELO_NOME)
             res = model.generate_content([
                 "Transcreva este áudio de atendimento de farmácia. Retorne APENAS o texto exato que foi falado, sem aspas.",
@@ -205,7 +213,6 @@ def transcrever_audio_para_texto(audio_file):
             return None
 
 def gerar_audio_cliente(texto, prompt_imagem=""):
-    """Gera áudio realista usando Edge TTS (Microsoft Neural Voices)"""
     try:
         if "man " in prompt_imagem or "father" in prompt_imagem or "male" in prompt_imagem:
             voz = "pt-BR-AntonioNeural"
@@ -237,7 +244,7 @@ if "turno" not in st.session_state: st.session_state.turno = 1
 if "produto_alvo" not in st.session_state: st.session_state.produto_alvo = ""
 if "nota" not in st.session_state: st.session_state.nota = 0.0
 if "feedback" not in st.session_state: st.session_state.feedback = ""
-if "imagem_cliente" not in st.session_state: st.session_state.imagem_cliente = ""
+if "imagem_cliente" not in st.session_state: st.session_state.imagem_cliente = None
 if "prompt_atual" not in st.session_state: st.session_state.prompt_atual = ""
 
 # ==========================================
@@ -295,16 +302,18 @@ if colaborador != "Clique aqui para selecionar...":
             
             prompt_bruto = caso.get("prompt_img", "portrait of a brazilian person in a pharmacy")
             st.session_state.prompt_atual = prompt_bruto
-            prompt_formatado = urllib.parse.quote(prompt_bruto + " looking at camera")
-            seed = random.randint(1, 100000)
-            st.session_state.imagem_cliente = f"https://image.pollinations.ai/prompt/{prompt_formatado}?seed={seed}&width=300&height=300&nologo=true"
             
-            audio_bytes = gerar_audio_cliente(caso["queixa"], prompt_bruto)
-            
-            st.session_state.historico_chat = [{"role": "Cliente", "text": caso["queixa"], "audio": audio_bytes}]
-            st.session_state.produto_alvo = caso["produto_alvo"]
-            st.session_state.turno = 1
-            st.session_state.feedback = ""
+            with st.spinner("O cliente está entrando na farmácia..."):
+                # Agora o código FAZ O DOWNLOAD da imagem com segurança antes de prosseguir
+                imagem_bytes = gerar_imagem_cliente_segura(prompt_bruto)
+                st.session_state.imagem_cliente = imagem_bytes
+                
+                audio_bytes = gerar_audio_cliente(caso["queixa"], prompt_bruto)
+                
+                st.session_state.historico_chat = [{"role": "Cliente", "text": caso["queixa"], "audio": audio_bytes}]
+                st.session_state.produto_alvo = caso["produto_alvo"]
+                st.session_state.turno = 1
+                st.session_state.feedback = ""
             st.rerun()
 
     else:
@@ -312,7 +321,10 @@ if colaborador != "Clique aqui para selecionar...":
             if msg["role"] == "Cliente":
                 col_img, col_txt = st.columns([1, 4])
                 with col_img:
-                    st.image(st.session_state.imagem_cliente, use_container_width=True)
+                    if st.session_state.imagem_cliente:
+                        st.image(st.session_state.imagem_cliente, use_container_width=True)
+                    else:
+                        st.info("👤") # Fallback se falhar a internet
                 with col_txt:
                     st.markdown(f"""<div class="cliente-box"><div class="chat-label">🗣️ CLIENTE:</div><div class="chat-texto">"{msg['text']}"</div></div>""", unsafe_allow_html=True)
                     if "audio" in msg and msg["audio"]:
@@ -362,7 +374,6 @@ if colaborador != "Clique aqui para selecionar...":
                                 3. Traga uma objeção clássica (ex: achar caro, perguntar se demora a fazer efeito, dizer que tem pressa).
                                 """
                                 try:
-                                    # USA O MODELO ENCONTRADO DINAMICAMENTE AQUI TAMBÉM
                                     model = genai.GenerativeModel(MODELO_NOME)
                                     res_cliente = model.generate_content(prompt_cliente)
                                     texto_resposta_cliente = res_cliente.text.strip()
@@ -410,7 +421,6 @@ if colaborador != "Clique aqui para selecionar...":
                             FEEDBACK: [Feedback prático avaliando o conjunto]
                             """
                             try:
-                                # E AQUI TAMBÉM
                                 model = genai.GenerativeModel(MODELO_NOME)
                                 res_aval = model.generate_content(prompt_aval)
                                 
@@ -444,11 +454,11 @@ if colaborador != "Clique aqui para selecionar...":
                     st.success("Salvo!")
                     st.session_state.historico_chat = []
                     st.session_state.feedback = ""
-                    st.session_state.imagem_cliente = ""
+                    st.session_state.imagem_cliente = None
                     st.rerun()
             with col_discard:
                 if st.button("🗑️ DESCARTAR"):
                     st.session_state.historico_chat = []
                     st.session_state.feedback = ""
-                    st.session_state.imagem_cliente = ""
+                    st.session_state.imagem_cliente = None
                     st.rerun()
