@@ -11,6 +11,7 @@ import tempfile
 import asyncio
 import edge_tts
 import requests
+import threading
 
 # --- CONFIGURAÇÃO DA CHAVE DE API (SEGURA) ---
 try:
@@ -193,70 +194,76 @@ def gerar_imagem_cliente_segura(prompt_bruto):
         return None
 
 def transcrever_audio_para_texto(audio_file):
-    """Nova versão usando File API para suportar iOS e Android perfeitamente"""
-    with st.spinner("🎧 Processando áudio e transcrevendo..."):
-        temp_path = None
-        arquivo_gemini = None
+    """Nova versão BLINDADA: Extrai os bytes limpos e ignora lixo do navegador"""
+    with st.spinner("🎧 Transcrevendo sua voz..."):
         try:
             if not MODELO_NOME:
-                return "Erro: Nenhum modelo encontrado."
+                return "Erro: Nenhum modelo de IA encontrado."
                 
-            # 1. Salva o áudio do celular em um arquivo temporário no servidor
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
-                temp_audio.write(audio_file.getvalue())
-                temp_path = temp_audio.name
-
-            # 2. Faz o upload oficial via File API do Gemini (resolve incompatibilidade mobile)
-            arquivo_gemini = genai.upload_file(path=temp_path)
-
-            # 3. Usa o modelo para decodificar
-            model = genai.GenerativeModel(MODELO_NOME)
+            # Limpa as sujeiras do formato que o celular envia (ex: audio/webm; codecs=opus)
+            mime_limpo = audio_file.type.split(';')[0] if audio_file.type else 'audio/wav'
             
-            # 4. Pede a transcrição usando o arquivo anexado
+            # Garante que o Gemini reconheça formatos Apple (m4a/mp4)
+            if mime_limpo == "audio/mp4" or mime_limpo == "audio/m4a":
+                mime_limpo = "audio/mp4"
+
+            model = genai.GenerativeModel(MODELO_NOME)
             res = model.generate_content([
                 "Transcreva este áudio de atendimento de farmácia. Retorne APENAS o texto exato que foi falado, sem aspas, comentários ou formatação.",
-                arquivo_gemini
+                {"mime_type": mime_limpo, "data": audio_file.getvalue()}
             ])
             
-            return res.text.strip()
+            texto = res.text.strip()
+            if not texto:
+                return "Áudio incompreensível ou vazio."
+            return texto
 
         except Exception as e:
-            st.error(f"Erro detalhado na transcrição: {e}")
+            st.error(f"Erro do Google Gemini ao ler o áudio: {e}")
             return None
-            
-        finally:
-            # 5. Faxina: apaga o arquivo temporário do Streamlit e da nuvem do Google
-            try:
-                if arquivo_gemini:
-                    genai.delete_file(arquivo_gemini.name)
-                if temp_path and os.path.exists(temp_path):
-                    os.remove(temp_path)
-            except:
-                pass
 
 def gerar_audio_cliente(texto, prompt_imagem=""):
+    """BLINDAGEM CONTRA CRASH: Roda a geração de voz em uma Thread isolada."""
     try:
         if "man " in prompt_imagem or "father" in prompt_imagem or "male" in prompt_imagem:
             voz = "pt-BR-AntonioNeural"
         else:
             voz = "pt-BR-FranciscaNeural"
             
-        communicate = edge_tts.Communicate(texto, voz)
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        resultado = []
         
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
-            temp_name = fp.name
+        # Função que será rodada separadamente para não derrubar o Streamlit
+        def worker():
+            async def _gerar():
+                communicate = edge_tts.Communicate(texto, voz)
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
+                    temp_name = fp.name
+                await communicate.save(temp_name)
+                return temp_name
+                
+            try:
+                arquivo_gerado = asyncio.run(_gerar())
+                resultado.append(arquivo_gerado)
+            except Exception as e:
+                resultado.append(e)
+
+        # Inicia a Thread blindada
+        t = threading.Thread(target=worker)
+        t.start()
+        t.join() # Espera a voz ficar pronta
+        
+        res = resultado[0]
+        if isinstance(res, Exception):
+            st.error(f"Falha ao gerar voz da IA: {res}")
+            return None
             
-        loop.run_until_complete(communicate.save(temp_name))
-        loop.close()
-        
-        with open(temp_name, "rb") as f:
+        with open(res, "rb") as f:
             data = f.read()
-        os.remove(temp_name)
+        os.remove(res) # Apaga o arquivo temporário
         return data
+        
     except Exception as e:
-        st.error(f"Erro ao gerar áudio: {e}")
+        st.error(f"Erro fatal ao gerar áudio: {e}")
         return None
 
 # --- ESTADO INICIAL ---
@@ -347,7 +354,6 @@ if colaborador != "Clique aqui para selecionar...":
                 with col_txt:
                     st.markdown(f"""<div class="cliente-box"><div class="chat-label">🗣️ CLIENTE:</div><div class="chat-texto">"{msg['text']}"</div></div>""", unsafe_allow_html=True)
                     if "audio" in msg and msg["audio"]:
-                        # Sem autoplay: O usuário dá o play na tela do celular
                         st.audio(msg["audio"], format="audio/mp3")
             else:
                 st.markdown(f"""<div class="vendedor-box"><div class="chat-label">🧑‍⚕️ {colaborador.upper()}:</div><div class="chat-texto">{msg['text']}</div></div>""", unsafe_allow_html=True)
@@ -372,7 +378,7 @@ if colaborador != "Clique aqui para selecionar...":
                             resposta_final = resposta_texto
                             
                         if not resposta_final:
-                            st.warning("⚠️ Escreva algo ou grave um áudio para continuar!")
+                            st.warning("⚠️ Escreva algo ou grave um áudio válido para continuar!")
                         else:
                             with st.spinner("Cliente ouvindo e pensando..."):
                                 st.session_state.historico_chat.append({"role": "Vendedor", "text": resposta_final})
