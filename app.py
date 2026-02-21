@@ -167,17 +167,9 @@ def salvar_sessao(dados):
 
 @st.cache_resource
 def encontrar_modelo():
+    """Força o uso do 1.5-flash para aproveitar a cota gratuita maior e evitar erro 429"""
     if not API_KEY: return None
-    try:
-        modelos = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        if not modelos: return None
-        for m in modelos:
-            if "1.5-flash" in m: return m
-        for m in modelos:
-            if "flash" in m: return m
-        return modelos[0]
-    except: 
-        return None
+    return "gemini-1.5-flash"
 
 MODELO_NOME = encontrar_modelo()
 
@@ -200,10 +192,8 @@ def transcrever_audio_para_texto(audio_file):
             if not MODELO_NOME:
                 return "Erro: Nenhum modelo de IA encontrado."
                 
-            # Limpa as sujeiras do formato que o celular envia (ex: audio/webm; codecs=opus)
             mime_limpo = audio_file.type.split(';')[0] if audio_file.type else 'audio/wav'
             
-            # Garante que o Gemini reconheça formatos Apple (m4a/mp4)
             if mime_limpo == "audio/mp4" or mime_limpo == "audio/m4a":
                 mime_limpo = "audio/mp4"
 
@@ -232,7 +222,6 @@ def gerar_audio_cliente(texto, prompt_imagem=""):
             
         resultado = []
         
-        # Função que será rodada separadamente para não derrubar o Streamlit
         def worker():
             async def _gerar():
                 communicate = edge_tts.Communicate(texto, voz)
@@ -247,10 +236,9 @@ def gerar_audio_cliente(texto, prompt_imagem=""):
             except Exception as e:
                 resultado.append(e)
 
-        # Inicia a Thread blindada
         t = threading.Thread(target=worker)
         t.start()
-        t.join() # Espera a voz ficar pronta
+        t.join() 
         
         res = resultado[0]
         if isinstance(res, Exception):
@@ -259,7 +247,7 @@ def gerar_audio_cliente(texto, prompt_imagem=""):
             
         with open(res, "rb") as f:
             data = f.read()
-        os.remove(res) # Apaga o arquivo temporário
+        os.remove(res) 
         return data
         
     except Exception as e:
