@@ -181,26 +181,22 @@ def encontrar_modelo():
 MODELO_NOME = encontrar_modelo()
 
 def gerar_imagem_cliente_segura(prompt_bruto):
-    """Gera a imagem e baixa os bytes para evitar falha de renderização no navegador"""
     try:
         prompt_formatado = urllib.parse.quote(prompt_bruto + " looking at camera")
         seed = random.randint(1, 100000)
         url = f"https://image.pollinations.ai/prompt/{prompt_formatado}?seed={seed}&width=300&height=300&nologo=true"
-        
-        # Faz o download da imagem nos bastidores
         resposta = requests.get(url, timeout=15)
         if resposta.status_code == 200:
             return resposta.content
-        else:
-            return None
-    except Exception as e:
+        return None
+    except:
         return None
 
 def transcrever_audio_para_texto(audio_file):
     with st.spinner("🎧 Transcrevendo sua voz..."):
         try:
             if not MODELO_NOME:
-                return "Erro: Nenhum modelo de IA encontrado para transcrição."
+                return "Erro: Nenhum modelo encontrado."
                 
             model = genai.GenerativeModel(MODELO_NOME)
             res = model.generate_content([
@@ -255,7 +251,7 @@ st.markdown("<div class='titulo-central'>🏆 💊 Coach Suprabio 🧠</div>", u
 if not CONEXAO_OK:
     st.error("⚠️ Configure a API Key nos 'Secrets'!")
 elif not MODELO_NOME:
-    st.error("⚠️ A API Key conectou, mas nenhum modelo foi encontrado para uso.")
+    st.error("⚠️ Nenhum modelo de IA disponível na API Key.")
 
 col_esq, col_meio, col_dir = st.columns([1, 1, 1])
 with col_meio:
@@ -299,15 +295,12 @@ if colaborador != "Clique aqui para selecionar...":
     if not st.session_state.historico_chat:
         if st.button("🔔 CHAMAR PRÓXIMO CLIENTE", type="primary"):
             caso = random.choice(CASOS_REAIS)
-            
             prompt_bruto = caso.get("prompt_img", "portrait of a brazilian person in a pharmacy")
             st.session_state.prompt_atual = prompt_bruto
             
             with st.spinner("O cliente está entrando na farmácia..."):
-                # Agora o código FAZ O DOWNLOAD da imagem com segurança antes de prosseguir
                 imagem_bytes = gerar_imagem_cliente_segura(prompt_bruto)
                 st.session_state.imagem_cliente = imagem_bytes
-                
                 audio_bytes = gerar_audio_cliente(caso["queixa"], prompt_bruto)
                 
                 st.session_state.historico_chat = [{"role": "Cliente", "text": caso["queixa"], "audio": audio_bytes}]
@@ -324,17 +317,16 @@ if colaborador != "Clique aqui para selecionar...":
                     if st.session_state.imagem_cliente:
                         st.image(st.session_state.imagem_cliente, use_container_width=True)
                     else:
-                        st.info("👤") # Fallback se falhar a internet
+                        st.info("👤")
                 with col_txt:
                     st.markdown(f"""<div class="cliente-box"><div class="chat-label">🗣️ CLIENTE:</div><div class="chat-texto">"{msg['text']}"</div></div>""", unsafe_allow_html=True)
                     if "audio" in msg and msg["audio"]:
-                        autoplay = True if i == len(st.session_state.historico_chat) - 1 else False
-                        st.audio(msg["audio"], format="audio/mp3", autoplay=autoplay)
+                        # SOLUÇÃO MOBILE: Retirado o autoplay=True. O áudio aparece e o usuário aperta Play!
+                        st.audio(msg["audio"], format="audio/mp3")
             else:
                 st.markdown(f"""<div class="vendedor-box"><div class="chat-label">🧑‍⚕️ {colaborador.upper()}:</div><div class="chat-texto">{msg['text']}</div></div>""", unsafe_allow_html=True)
 
         if not st.session_state.feedback:
-            
             with st.expander("🤫 Gabarito do Gerente (Não mostre ao colaborador)"):
                 st.write(f"**Indicação ideal esperada:** {st.session_state.produto_alvo}")
                 
@@ -344,11 +336,9 @@ if colaborador != "Clique aqui para selecionar...":
             audio_val = st.audio_input("🎙️ Gravar resposta em áudio", key=f"audio_{st.session_state.turno}")
             
             col1, col2 = st.columns(2)
-            
             with col1:
                 if st.session_state.turno < 3:
                     if st.button("🗣️ RESPONDER E CONTINUAR"):
-                        
                         resposta_final = ""
                         if audio_val is not None:
                             resposta_final = transcrever_audio_para_texto(audio_val)
@@ -360,13 +350,11 @@ if colaborador != "Clique aqui para selecionar...":
                         else:
                             with st.spinner("Cliente ouvindo e pensando..."):
                                 st.session_state.historico_chat.append({"role": "Vendedor", "text": resposta_final})
-                                
                                 texto_conversa = "\n".join([f"{m['role']}: {m['text']}" for m in st.session_state.historico_chat])
                                 prompt_cliente = f"""
                                 Atue como um cliente de farmácia. Sua queixa principal inicial era a falta de: {st.session_state.produto_alvo}.
                                 Histórico da conversa:
                                 {texto_conversa}
-                                
                                 Responda à última fala do Vendedor. 
                                 Regras:
                                 1. Seja curto (1 a 2 frases).
@@ -377,7 +365,6 @@ if colaborador != "Clique aqui para selecionar...":
                                     model = genai.GenerativeModel(MODELO_NOME)
                                     res_cliente = model.generate_content(prompt_cliente)
                                     texto_resposta_cliente = res_cliente.text.strip()
-                                    
                                     audio_bytes = gerar_audio_cliente(texto_resposta_cliente, st.session_state.prompt_atual)
                                     
                                     st.session_state.historico_chat.append({"role": "Cliente", "text": texto_resposta_cliente, "audio": audio_bytes})
@@ -391,7 +378,6 @@ if colaborador != "Clique aqui para selecionar...":
             with col2:
                 btn_tipo = "primary" if st.session_state.turno == 3 else "secondary"
                 if st.button("✅ FINALIZAR E AVALIAR", type=btn_tipo):
-                    
                     resposta_final = ""
                     if audio_val is not None:
                         resposta_final = transcrever_audio_para_texto(audio_val)
@@ -404,18 +390,15 @@ if colaborador != "Clique aqui para selecionar...":
                         with st.spinner("O Coach está analisando o atendimento..."):
                             st.session_state.historico_chat.append({"role": "Vendedor", "text": resposta_final})
                             texto_conversa_final = "\n".join([f"{m['role']}: {m['text']}" for m in st.session_state.historico_chat])
-                            
                             prompt_aval = f"""
                             Aja como um gerente técnico de farmácia e coach de vendas.
                             CONVERSA:
                             {texto_conversa_final}
                             PRODUTO ALVO ESPERADO: {st.session_state.produto_alvo}
-                            
                             AVALIAÇÃO:
                             1. Sondagem e contorno de objeções.
                             2. Empatia.
                             3. Indicou {st.session_state.produto_alvo} focando no BENEFÍCIO?
-                            
                             SAÍDA OBRIGATÓRIA:
                             NOTA_FINAL: [Sua nota de 0 a 10]
                             FEEDBACK: [Feedback prático avaliando o conjunto]
@@ -423,7 +406,6 @@ if colaborador != "Clique aqui para selecionar...":
                             try:
                                 model = genai.GenerativeModel(MODELO_NOME)
                                 res_aval = model.generate_content(prompt_aval)
-                                
                                 match = re.search(r"NOTA_FINAL:\s*(\d+(?:[\.,]\d+)?)", res_aval.text, re.IGNORECASE)
                                 st.session_state.feedback = res_aval.text.replace("FEEDBACK:", "").strip()
                                 st.session_state.nota = float(match.group(1).replace(',', '.')) if match else 0.0
