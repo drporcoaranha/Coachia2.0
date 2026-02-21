@@ -169,21 +169,32 @@ def salvar_sessao(dados):
 
 @st.cache_resource
 def encontrar_modelo():
+    """Busca dinamicamente o modelo correto disponível na API Key do usuário"""
     if not API_KEY: return None
     try:
         modelos = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        if not modelos: return "models/gemini-1.5-flash"
+        if not modelos: return None
+        
+        # Tenta priorizar modelos da família Flash (rápidos e bons para áudio)
         for m in modelos:
             if "1.5-flash" in m: return m
-        return modelos[0]
-    except: return None
+        for m in modelos:
+            if "flash" in m: return m
+            
+        return modelos[0] # Se não achar o Flash, usa o primeiro que suportar geração de conteúdo
+    except: 
+        return None
 
 MODELO_NOME = encontrar_modelo()
 
 def transcrever_audio_para_texto(audio_file):
     with st.spinner("🎧 Transcrevendo sua voz..."):
         try:
-            model = genai.GenerativeModel("models/gemini-1.5-flash")
+            if not MODELO_NOME:
+                return "Erro: Nenhum modelo de IA encontrado para transcrição."
+                
+            # AGORA USA O MODELO ENCONTRADO DINAMICAMENTE
+            model = genai.GenerativeModel(MODELO_NOME)
             res = model.generate_content([
                 "Transcreva este áudio de atendimento de farmácia. Retorne APENAS o texto exato que foi falado, sem aspas.",
                 {"mime_type": "audio/wav", "data": audio_file.getvalue()}
@@ -196,15 +207,12 @@ def transcrever_audio_para_texto(audio_file):
 def gerar_audio_cliente(texto, prompt_imagem=""):
     """Gera áudio realista usando Edge TTS (Microsoft Neural Voices)"""
     try:
-        # Define a voz (Masculina se o prompt citar "man" ou "father", Feminina para o resto)
         if "man " in prompt_imagem or "father" in prompt_imagem or "male" in prompt_imagem:
             voz = "pt-BR-AntonioNeural"
         else:
             voz = "pt-BR-FranciscaNeural"
             
         communicate = edge_tts.Communicate(texto, voz)
-        
-        # Resolve possíveis bloqueios de event loop do Streamlit
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
@@ -239,6 +247,8 @@ st.markdown("<div class='titulo-central'>🏆 💊 Coach Suprabio 🧠</div>", u
 
 if not CONEXAO_OK:
     st.error("⚠️ Configure a API Key nos 'Secrets'!")
+elif not MODELO_NOME:
+    st.error("⚠️ A API Key conectou, mas nenhum modelo foi encontrado para uso.")
 
 col_esq, col_meio, col_dir = st.columns([1, 1, 1])
 with col_meio:
@@ -283,14 +293,12 @@ if colaborador != "Clique aqui para selecionar...":
         if st.button("🔔 CHAMAR PRÓXIMO CLIENTE", type="primary"):
             caso = random.choice(CASOS_REAIS)
             
-            # --- CORREÇÃO DA IMAGEM: Formatação segura da URL ---
             prompt_bruto = caso.get("prompt_img", "portrait of a brazilian person in a pharmacy")
             st.session_state.prompt_atual = prompt_bruto
             prompt_formatado = urllib.parse.quote(prompt_bruto + " looking at camera")
             seed = random.randint(1, 100000)
             st.session_state.imagem_cliente = f"https://image.pollinations.ai/prompt/{prompt_formatado}?seed={seed}&width=300&height=300&nologo=true"
             
-            # Gera o áudio Neural (Passando o prompt para definir M/F)
             audio_bytes = gerar_audio_cliente(caso["queixa"], prompt_bruto)
             
             st.session_state.historico_chat = [{"role": "Cliente", "text": caso["queixa"], "audio": audio_bytes}]
@@ -300,7 +308,6 @@ if colaborador != "Clique aqui para selecionar...":
             st.rerun()
 
     else:
-        # Renderiza o chat
         for i, msg in enumerate(st.session_state.historico_chat):
             if msg["role"] == "Cliente":
                 col_img, col_txt = st.columns([1, 4])
@@ -330,7 +337,6 @@ if colaborador != "Clique aqui para selecionar...":
                 if st.session_state.turno < 3:
                     if st.button("🗣️ RESPONDER E CONTINUAR"):
                         
-                        # Correção na prioridade do áudio vs texto
                         resposta_final = ""
                         if audio_val is not None:
                             resposta_final = transcrever_audio_para_texto(audio_val)
@@ -338,7 +344,7 @@ if colaborador != "Clique aqui para selecionar...":
                             resposta_final = resposta_texto
                             
                         if not resposta_final:
-                            st.warning("⚠️ Escreva algo ou valide sua gravação de áudio para continuar!")
+                            st.warning("⚠️ Escreva algo ou grave um áudio para continuar!")
                         else:
                             with st.spinner("Cliente ouvindo e pensando..."):
                                 st.session_state.historico_chat.append({"role": "Vendedor", "text": resposta_final})
@@ -356,12 +362,11 @@ if colaborador != "Clique aqui para selecionar...":
                                 3. Traga uma objeção clássica (ex: achar caro, perguntar se demora a fazer efeito, dizer que tem pressa).
                                 """
                                 try:
-                                    modelo_uso = MODELO_NOME if MODELO_NOME else "models/gemini-1.5-flash"
-                                    model = genai.GenerativeModel(modelo_uso)
+                                    # USA O MODELO ENCONTRADO DINAMICAMENTE AQUI TAMBÉM
+                                    model = genai.GenerativeModel(MODELO_NOME)
                                     res_cliente = model.generate_content(prompt_cliente)
                                     texto_resposta_cliente = res_cliente.text.strip()
                                     
-                                    # Gera o áudio Neural para a resposta
                                     audio_bytes = gerar_audio_cliente(texto_resposta_cliente, st.session_state.prompt_atual)
                                     
                                     st.session_state.historico_chat.append({"role": "Cliente", "text": texto_resposta_cliente, "audio": audio_bytes})
@@ -405,8 +410,8 @@ if colaborador != "Clique aqui para selecionar...":
                             FEEDBACK: [Feedback prático avaliando o conjunto]
                             """
                             try:
-                                modelo_uso = MODELO_NOME if MODELO_NOME else "models/gemini-1.5-flash"
-                                model = genai.GenerativeModel(modelo_uso)
+                                # E AQUI TAMBÉM
+                                model = genai.GenerativeModel(MODELO_NOME)
                                 res_aval = model.generate_content(prompt_aval)
                                 
                                 match = re.search(r"NOTA_FINAL:\s*(\d+(?:[\.,]\d+)?)", res_aval.text, re.IGNORECASE)
