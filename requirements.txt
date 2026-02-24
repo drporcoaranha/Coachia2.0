@@ -5,4 +5,4 @@ openpyxl
 edge-tts
 asyncio
 requests
-
+audio-recorder-streamlit
