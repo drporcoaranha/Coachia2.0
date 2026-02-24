@@ -12,6 +12,7 @@ import asyncio
 import edge_tts
 import requests
 import threading
+from audio_recorder_streamlit import audio_recorder
 
 # --- CONFIGURAÇÃO DA CHAVE DE API (SEGURA) ---
 try:
@@ -167,31 +168,16 @@ def salvar_sessao(dados):
 
 @st.cache_resource
 def encontrar_modelo():
-    """Busca dinamicamente o modelo 1.5 exato disponível na sua chave para evitar erro 404 e 429"""
     if not API_KEY: return None
     try:
-        # Puxa a lista oficial e exata de modelos que a SUA chave pode usar
         modelos_disponiveis = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        if not modelos_disponiveis: 
-            return None
-
-        # 1. Prioridade Máxima: Acha a versão exata do 1.5 Flash (cota alta)
+        if not modelos_disponiveis: return None
         for m in modelos_disponiveis:
-            if "1.5-flash" in m: 
-                return m
-                
-        # 2. Plano B: Se não achar o flash, pega qualquer versão do 1.5 (Pro, etc)
+            if "1.5-flash" in m: return m
         for m in modelos_disponiveis:
-            if "1.5" in m:
-                return m
-
-        # 3. Plano C: Pega o primeiro modelo válido da lista que não seja o 2.5 (cota baixa)
+            if "1.5" in m: return m
         for m in modelos_disponiveis:
-            if "2.5" not in m:
-                return m
-                
-        # 4. Último caso: Usa o que o Google mandar
+            if "2.5" not in m: return m
         return modelos_disponiveis[0]
     except: 
         return None
@@ -210,27 +196,23 @@ def gerar_imagem_cliente_segura(prompt_bruto):
     except:
         return None
 
-def transcrever_audio_para_texto(audio_file):
-    """Nova versão BLINDADA: Extrai os bytes limpos e ignora lixo do navegador"""
+def transcrever_audio_para_texto(audio_bytes):
+    """Nova função que recebe os bytes de áudio limpos do audio_recorder_streamlit"""
     with st.spinner("🎧 Transcrevendo sua voz..."):
         try:
             if not MODELO_NOME:
                 return "Erro: Nenhum modelo de IA encontrado."
                 
-            mime_limpo = audio_file.type.split(';')[0] if audio_file.type else 'audio/wav'
-            
-            if mime_limpo == "audio/mp4" or mime_limpo == "audio/m4a":
-                mime_limpo = "audio/mp4"
-
             model = genai.GenerativeModel(MODELO_NOME)
+            # Como a biblioteca já garante o formato WAV, o Gemini lê perfeitamente!
             res = model.generate_content([
                 "Transcreva este áudio de atendimento de farmácia. Retorne APENAS o texto exato que foi falado, sem aspas, comentários ou formatação.",
-                {"mime_type": mime_limpo, "data": audio_file.getvalue()}
+                {"mime_type": "audio/wav", "data": audio_bytes}
             ])
             
             texto = res.text.strip()
             if not texto:
-                return "Áudio incompreensível ou vazio."
+                return "Áudio vazio ou não reconhecido."
             return texto
 
         except Exception as e:
@@ -238,7 +220,6 @@ def transcrever_audio_para_texto(audio_file):
             return None
 
 def gerar_audio_cliente(texto, prompt_imagem=""):
-    """BLINDAGEM CONTRA CRASH: Roda a geração de voz em uma Thread isolada."""
     try:
         if "man " in prompt_imagem or "father" in prompt_imagem or "male" in prompt_imagem:
             voz = "pt-BR-AntonioNeural"
@@ -378,20 +359,25 @@ if colaborador != "Clique aqui para selecionar...":
             st.write(f"*(Turno {st.session_state.turno} de 3)*")
             
             resposta_texto = st.text_area("✍️ Digite sua resposta ou grave um áudio abaixo:", height=80, key=f"input_{st.session_state.turno}")
-            audio_val = st.audio_input("🎙️ Gravar resposta em áudio", key=f"audio_{st.session_state.turno}")
+            
+            # --- NOVO COMPONENTE DE GRAVAÇÃO (ESPECIAL PARA MOBILE) ---
+            st.write("🎙️ Grave sua voz (WAV limpo):")
+            audio_bytes_gravados = audio_recorder(text="Clique para Gravar", recording_color="#ff4b4b", neutral_color="#0088cc", key=f"audio_{st.session_state.turno}")
             
             col1, col2 = st.columns(2)
             with col1:
                 if st.session_state.turno < 3:
                     if st.button("🗣️ RESPONDER E CONTINUAR"):
                         resposta_final = ""
-                        if audio_val is not None:
-                            resposta_final = transcrever_audio_para_texto(audio_val)
+                        
+                        # Lê os bytes gerados pela nova biblioteca
+                        if audio_bytes_gravados is not None:
+                            resposta_final = transcrever_audio_para_texto(audio_bytes_gravados)
                         elif resposta_texto.strip() != "":
                             resposta_final = resposta_texto
                             
                         if not resposta_final:
-                            st.warning("⚠️ Escreva algo ou grave um áudio válido para continuar!")
+                            st.warning("⚠️ Escreva algo ou grave um áudio para continuar!")
                         else:
                             with st.spinner("Cliente ouvindo e pensando..."):
                                 st.session_state.historico_chat.append({"role": "Vendedor", "text": resposta_final})
@@ -424,8 +410,9 @@ if colaborador != "Clique aqui para selecionar...":
                 btn_tipo = "primary" if st.session_state.turno == 3 else "secondary"
                 if st.button("✅ FINALIZAR E AVALIAR", type=btn_tipo):
                     resposta_final = ""
-                    if audio_val is not None:
-                        resposta_final = transcrever_audio_para_texto(audio_val)
+                    
+                    if audio_bytes_gravados is not None:
+                        resposta_final = transcrever_audio_para_texto(audio_bytes_gravados)
                     elif resposta_texto.strip() != "":
                         resposta_final = resposta_texto
                         
@@ -489,4 +476,3 @@ if colaborador != "Clique aqui para selecionar...":
                     st.session_state.feedback = ""
                     st.session_state.imagem_cliente = None
                     st.rerun()
-
