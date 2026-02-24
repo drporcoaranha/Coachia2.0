@@ -167,7 +167,6 @@ def salvar_sessao(dados):
 
 @st.cache_resource
 def encontrar_modelo():
-    """Busca dinamicamente o modelo 1.5 exato disponível na sua chave para evitar erro 404 e 429"""
     if not API_KEY: return None
     try:
         modelos_disponiveis = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
@@ -199,7 +198,6 @@ def gerar_imagem_cliente_segura(prompt_bruto):
         return None
 
 def transcrever_audio_para_texto(audio_file):
-    """Nova versão BLINDADA: Extrai os bytes limpos e ignora lixo do navegador"""
     with st.spinner("🎧 Transcrevendo sua voz..."):
         try:
             if not MODELO_NOME:
@@ -226,7 +224,6 @@ def transcrever_audio_para_texto(audio_file):
             return None
 
 def gerar_audio_cliente(texto, prompt_imagem=""):
-    """BLINDAGEM CONTRA CRASH: Roda a geração de voz em uma Thread isolada."""
     try:
         if "man " in prompt_imagem or "father" in prompt_imagem or "male" in prompt_imagem:
             voz = "pt-BR-AntonioNeural"
@@ -355,7 +352,8 @@ if colaborador != "Clique aqui para selecionar...":
                 with col_txt:
                     st.markdown(f"""<div class="cliente-box"><div class="chat-label">🗣️ CLIENTE:</div><div class="chat-texto">"{msg['text']}"</div></div>""", unsafe_allow_html=True)
                     if "audio" in msg and msg["audio"]:
-                        st.audio(msg["audio"], format="audio/mp3")
+                        # --- CORREÇÃO AQUI: format='audio/mpeg' resolve o erro no Safari/Mobile ---
+                        st.audio(msg["audio"], format="audio/mpeg")
             else:
                 st.markdown(f"""<div class="vendedor-box"><div class="chat-label">🧑‍⚕️ {colaborador.upper()}:</div><div class="chat-texto">{msg['text']}</div></div>""", unsafe_allow_html=True)
 
