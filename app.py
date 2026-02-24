@@ -80,6 +80,10 @@ st.markdown("""
         border-radius: 15px;
         box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
     }
+    [data-testid="stMetricValue"] {
+        font-size: 1.5rem;
+        color: #0088cc;
+    }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 </style>
@@ -167,6 +171,7 @@ def salvar_sessao(dados):
 
 @st.cache_resource
 def encontrar_modelo():
+    """Força o uso do 1.5-flash para aproveitar a cota gratuita maior e evitar erro 429"""
     if not API_KEY: return None
     try:
         modelos_disponiveis = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
@@ -273,6 +278,8 @@ if "nota" not in st.session_state: st.session_state.nota = 0.0
 if "feedback" not in st.session_state: st.session_state.feedback = ""
 if "imagem_cliente" not in st.session_state: st.session_state.imagem_cliente = None
 if "prompt_atual" not in st.session_state: st.session_state.prompt_atual = ""
+# NOVA MEMÓRIA: Lógica do "Baralho de Cartas" para evitar repetição
+if "casos_disponiveis" not in st.session_state: st.session_state.casos_disponiveis = CASOS_REAIS.copy()
 
 # ==========================================
 # HEADER
@@ -315,6 +322,39 @@ with col_meio:
 st.markdown("---")
 
 # ==========================================
+# RANKING / GAMIFICAÇÃO DA EQUIPE
+# ==========================================
+df_rank = carregar_historico()
+if not df_rank.empty:
+    st.markdown("<h4 style='text-align: center; color: #555;'>🔥 Top Vendedores (Média de Notas)</h4>", unsafe_allow_html=True)
+    
+    # Calcula a média de notas e a quantidade de treinos por vendedor
+    df_rank['Nota'] = pd.to_numeric(df_rank['Nota'], errors='coerce')
+    resumo = df_rank.groupby("Colaborador").agg(
+        Media=("Nota", "mean"),
+        Treinos=("Nota", "count")
+    ).reset_index().sort_values("Media", ascending=False)
+    
+    # Monta o pódio com os top 3
+    top_n = min(len(resumo), 3)
+    cols = st.columns(top_n)
+    
+    medalhas = ["🥇", "🥈", "🥉"]
+    for i in range(top_n):
+        nome = resumo.iloc[i]["Colaborador"]
+        media = resumo.iloc[i]["Media"]
+        treinos = resumo.iloc[i]["Treinos"]
+        
+        with cols[i]:
+            st.metric(
+                label=f"{medalhas[i]} {nome.upper()}", 
+                value=f"{media:.1f}", 
+                delta=f"{treinos} clientes",
+                delta_color="normal"
+            )
+    st.markdown("---")
+
+# ==========================================
 # ÁREA DE TREINAMENTO
 # ==========================================
 st.markdown("<h3 class='subtitulo-central'>👤 Quem vai treinar agora?</h3>", unsafe_allow_html=True)
@@ -325,7 +365,16 @@ if colaborador != "Clique aqui para selecionar...":
     
     if not st.session_state.historico_chat:
         if st.button("🔔 CHAMAR PRÓXIMO CLIENTE", type="primary"):
-            caso = random.choice(CASOS_REAIS)
+            
+            # --- CORREÇÃO DE REPETIÇÃO: Lógica de Baralho ---
+            # Se a lista de disponíveis esvaziar, reinicia o baralho
+            if not st.session_state.casos_disponiveis:
+                st.session_state.casos_disponiveis = CASOS_REAIS.copy()
+            
+            # Escolhe um caso e o remove da lista para não repetir
+            caso = random.choice(st.session_state.casos_disponiveis)
+            st.session_state.casos_disponiveis.remove(caso)
+            
             prompt_bruto = caso.get("prompt_img", "portrait of a brazilian person in a pharmacy")
             st.session_state.prompt_atual = prompt_bruto
             
@@ -352,7 +401,6 @@ if colaborador != "Clique aqui para selecionar...":
                 with col_txt:
                     st.markdown(f"""<div class="cliente-box"><div class="chat-label">🗣️ CLIENTE:</div><div class="chat-texto">"{msg['text']}"</div></div>""", unsafe_allow_html=True)
                     if "audio" in msg and msg["audio"]:
-                        # --- CORREÇÃO AQUI: format='audio/mpeg' resolve o erro no Safari/Mobile ---
                         st.audio(msg["audio"], format="audio/mpeg")
             else:
                 st.markdown(f"""<div class="vendedor-box"><div class="chat-label">🧑‍⚕️ {colaborador.upper()}:</div><div class="chat-texto">{msg['text']}</div></div>""", unsafe_allow_html=True)
