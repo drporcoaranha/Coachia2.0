@@ -182,36 +182,13 @@ def salvar_sessao(dados):
 # Fixamos o modelo diretamente para garantir 100% de estabilidade.
 # Substitua a função encontrar_modelo() por esta:
 # E garanta que a variável seja definida assim:
-@st.cache_resource
-def encontrar_modelo():
-    if not API_KEY: 
-        return None
-    
-    # Lista dos modelos estáveis atuais (evite 'preview' ou nomes antigos)
-    modelos_recomendados = [
-        "gemini-1.5-flash-002",
-        "gemini-1.5-flash",
-        "gemini-1.5-pro-002",
-        "gemini-1.5-pro"
-    ]
-    
-    try:
-        # Verifica quais modelos estão disponíveis na sua conta
-        modelos_disponiveis = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        
-        # Seleciona o primeiro que encontrar na nossa lista recomendada
-        for modelo in modelos_recomendados:
-            if modelo in modelos_disponiveis or f"models/{modelo}" in modelos_disponiveis:
-                return f"models/{modelo}"
-        
-        # Caso nenhum dos recomendados esteja disponível (fallback)
-        return "models/gemini-1.5-flash"
-    except Exception as e:
-        # Fallback de segurança em caso de falha na conexão
-        return "models/gemini-1.5-flash"
-        
-        # Mantenha apenas a chamada da função
-MODELO_NOME = encontrar_modelo()
+# --- CONFIGURAÇÃO FIXA: GEMINI 2.0 FLASH ---
+# O Gemini 2.0 Flash é atualmente o estado da arte para aplicações 
+# de latência ultra-baixa com alta capacidade multimodal.
+MODELO_NOME = "models/gemini-2.0-flash"
+
+# Se precisar de um raciocínio mais profundo (embora mais lento), 
+# você poderia alternar para: "models/gemini-2.0-pro"
 
 def gerar_imagem_cliente_segura(prompt_bruto):
     try:
