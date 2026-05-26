@@ -93,7 +93,6 @@ st.markdown("""
 ARQUIVO_HISTORICO = "historico_treinamento.xlsx"
 ARQUIVO_EQUIPE = "equipe.csv"
 
-# [NOVO] BASE DE CONHECIMENTO RAG PARA A IA (Para interpretações avançadas)
 BASE_RAG_SUPRABIO = """
 DOCUMENTO DE PRODUTOS SUPRABIO E OBJEÇÕES COMUNS:
 - Magnésio Dimalato: Excelente para energia, dores crônicas, fibromialgia e fadiga. Objeção comum: "Já tomo magnésio de farmácia barato". Resposta esperada: "O Dimalato tem absorção superior e não solta o intestino".
@@ -103,57 +102,57 @@ DOCUMENTO DE PRODUTOS SUPRABIO E OBJEÇÕES COMUNS:
 - Colágeno e Cálcio MDK: Foco estrutural e beleza. MDK direciona o cálcio para o osso (Vitamina K2). Objeção: "Cálcio dá pedra nos rins?". Resposta: "O MDK evita isso justamente por causa da vitamina K2".
 """
 
-# --- BANCO DE DADOS DE CASOS REAIS (COM PERFIL DE IMAGEM) ---
+# --- BANCO DE DADOS DE CASOS REAIS (BLINDADO COM GÊNERO E IDADE) ---
 CASOS_REAIS = [
-    {"queixa": "Moça, eu ando muito esquecido, a cabeça parece que não funciona direito e tô sem energia mental.", "produto_alvo": "Magnésio Dimalato ou Complexo B", "prompt_img": "portrait of a stressed middle-aged brazilian man rubbing his temples looking confused"},
-    {"queixa": "Minha memória tá terrível, esqueço onde coloquei a chave, o que ia falar... Queria algo pro cérebro e que fizesse bem pro coração.", "produto_alvo": "Ômega 3", "prompt_img": "portrait of an elderly brazilian woman looking forgetful and concerned"},
-    {"queixa": "Vou prestar concurso no fim do ano, mas sento pra estudar e não consigo focar, parece que dá um branco. Falaram que gordura de peixe é bom.", "produto_alvo": "Ômega 3", "prompt_img": "portrait of a young brazilian male student looking tired with books"},
-    {"queixa": "Sinto muitas cãibras na panturrilha de madrugada, acordo gemendo de dor. Tem alguma vitamina pra isso?", "produto_alvo": "Magnésio Dimalato ou Cloreto de Magnésio", "prompt_img": "portrait of an elderly brazilian man grimacing in pain holding his leg"},
-    {"queixa": "Acordo de manhã e parece que passou um caminhão em cima de mim. O corpo todo dolorido, pesado, uma canseira muscular crônica.", "produto_alvo": "Magnésio Dimalato", "prompt_img": "portrait of a middle-aged brazilian woman looking exhausted and sore"},
-    {"queixa": "Tenho sentido muita dor nas articulações, meu joelho estala quando subo escada. Tem algo pra 'lubrificar'?", "produto_alvo": "Cloreto de Magnésio ou Colágeno", "prompt_img": "portrait of an older brazilian woman pointing to her knee with a pained expression"},
-    {"queixa": "Tenho uns bicos de papagaio na coluna e acordo com as juntas todas travadas, duro igual um robô.", "produto_alvo": "Cloreto de Magnésio", "prompt_img": "portrait of an older brazilian man moving stiffly holding his back"},
-    {"queixa": "Tenho um esporão no calcanhar que me mata de dor quando piso no chão de manhã. Me falaram de um suplemento que desfaz isso.", "produto_alvo": "Cloreto de Magnésio", "prompt_img": "portrait of a middle-aged brazilian woman wincing while standing"},
-    {"queixa": "Fiz um exame e deu osteopenia. O médico mandou tomar cálcio, mas disseram que tem um que vai direto pro osso.", "produto_alvo": "Cálcio MDK", "prompt_img": "portrait of a concerned post-menopausal brazilian woman holding an exam result"},
-    {"queixa": "As mulheres da minha família têm histórico de osteoporose. Eu já passei dos 40 e queria começar a prevenir desde já.", "produto_alvo": "Cálcio MDK", "prompt_img": "portrait of a brazilian woman in her 40s looking proactive and health-conscious"},
-    {"queixa": "Tomei um tombo bobo e trinquei o osso do braço. Queria um suplemento pra ajudar a colar esse osso mais rápido e fortificar.", "produto_alvo": "Cálcio MDK", "prompt_img": "portrait of a young adult brazilian person with an arm sling looking impatient"},
-    {"queixa": "Eu deito na cama e fico rolando. O corpo cansa, mas a mente não desliga. Queria algo natural pra dormir.", "produto_alvo": "Melatonina ou Clamvit Zen", "prompt_img": "portrait of a brazilian woman with dark circles under eyes looking sleepless"},
-    {"queixa": "Eu viajo muito a trabalho e meu fuso horário vira uma bagunça, perco totalmente a hora de dormir.", "produto_alvo": "Melatonina", "prompt_img": "portrait of a brazilian businessman in a suit looking jet-lagged with luggage"},
-    {"queixa": "Eu até pego no sono rápido, mas acordo umas 3 da manhã e fico com o olho arregalado até clarear o dia. Tô um zumbi.", "produto_alvo": "Melatonina", "prompt_img": "portrait of a tired brazilian man with wide eyes looking desperate"},
-    {"queixa": "Trabalho por turno, uma semana de dia, outra de madrugada. Meu relógio biológico pifou, não durmo direito em horário nenhum.", "produto_alvo": "Melatonina", "prompt_img": "portrait of a shift worker brazilian woman in uniform looking exhausted"},
-    {"queixa": "Tô muito estressado, pavio curto, qualquer coisa eu explodo. Queria algo pra acalmar sem dar sono.", "produto_alvo": "Clamvit Zen", "prompt_img": "portrait of a tense middle-aged brazilian man looking irritable and stressed"},
-    {"queixa": "Estou numa ansiedade terrível por conta de problemas na família. Meu coração até acelera, mas tenho pavor de tomar tarja preta.", "produto_alvo": "Clamvit Zen", "prompt_img": "portrait of an anxious brazilian woman clutching her chest looking worried"},
-    {"queixa": "Tenho sentido um aperto no peito e um nó na garganta de tanta ansiedade com as provas da faculdade, mas não posso tomar remédio que dopa.", "produto_alvo": "Clamvit Zen", "prompt_img": "portrait of a young university brazilian student looking overwhelmed and anxious"},
-    {"queixa": "Tô sentindo uma fraqueza no coração, me sinto muito cansado depois que fiz 40 anos. O médico falou de uma vitamina pro coração.", "produto_alvo": "Coenzima Q10", "prompt_img": "portrait of a man over 40 brazilian looking out of breath holding chest"},
-    {"queixa": "Comecei a tomar estatina pra colesterol e agora sinto muita dor muscular, parece que fui atropelado. O médico falou de um suplemento.", "produto_alvo": "Coenzima Q10", "prompt_img": "portrait of an older brazilian man rubbing his arm muscle in pain"},
-    {"queixa": "Tenho muita enxaqueca e o médico disse que tem um suplemento que dá energia para as células e ajuda a diminuir as crises.", "produto_alvo": "Coenzima Q10", "prompt_img": "portrait of a brazilian woman holding her head in pain with migraine"},
-    {"queixa": "Tive uma infecção forte há uns meses e parece que minha bateria nunca mais voltou aos 100%. Qualquer esforço já me deixa ofegante.", "produto_alvo": "Coenzima Q10", "prompt_img": "portrait of a person recovering from illness brazilian looking weak and tired"},
-    {"queixa": "Sinto um formigamento constante nas mãos e nos pés, além de um cansaço que não passa com nada.", "produto_alvo": "Complexo B", "prompt_img": "portrait of a brazilian woman looking at her tingling hands with concern"},
-    {"queixa": "Sou diabético e ultimamente tenho sentido umas pontadas e uma queimação esquisita na sola dos pés.", "produto_alvo": "Complexo B", "prompt_img": "portrait of an older diabetic brazilian man looking worried about his feet"},
-    {"queixa": "Tô bebendo muita bebida alcoólica nos finais de semana e sinto que meu fígado e meus nervos tão pedindo arrego.", "produto_alvo": "Complexo B", "prompt_img": "portrait of a middle-aged brazilian man looking hungover and regretful"},
-    {"queixa": "Minha boca tá cheia de afta e eu pego resfriado toda semana. Minha imunidade deve estar no chão.", "produto_alvo": "Vitamina C ou Suprabio A-Z", "prompt_img": "portrait of a young brazilian person showing a mouth sore looking sickly"},
-    {"queixa": "Meu nariz vive escorrendo. Basta o tempo mudar um pouquinho ou bater um vento gelado que eu já fico resfriada.", "produto_alvo": "Vitamina C", "prompt_img": "portrait of a brazilian woman with a runny nose using a tissue"},
-    {"queixa": "Sinto que minha garganta arranha por qualquer friagem. E também demora muito pra cicatrizar qualquer machucadinho.", "produto_alvo": "Vitamina C", "prompt_img": "portrait of a person checking a slow-healing small cut on hand"},
-    {"queixa": "Tô me sentindo fraco, sem disposição pra trabalhar. Sou homem, tenho 35 anos, queria um tônico geral.", "produto_alvo": "Suprabio Homem", "prompt_img": "portrait of a 35 year old brazilian man in work clothes looking unmotivated and tired"},
-    {"queixa": "Trabalho o dia inteiro sentado no computador, chego em casa exausto, sem pique nem pra brincar com meus filhos.", "produto_alvo": "Suprabio Homem", "prompt_img": "portrait of a tired brazilian father in office shirt sitting slumped"},
-    {"queixa": "A rotina tá tão puxada que chego à noite em casa sem vontade de nada, até minha libido caiu por falta de ânimo físico.", "produto_alvo": "Suprabio Homem", "prompt_img": "portrait of a stressed brazilian man looking downcast and lacking energy"},
-    {"queixa": "Menina, tô na menopausa, sentindo uns calores e muito desânimo. Tem alguma vitamina completa pra mulher?", "produto_alvo": "Suprabio Mulher", "prompt_img": "portrait of a middle-aged brazilian woman fanning herself looking uncomfortable with hot flash"},
-    {"queixa": "Meu fluxo menstrual é muito intenso e depois eu fico uns dias me arrastando, pálida e sem força nenhuma.", "produto_alvo": "Suprabio Mulher ou Complexo B", "prompt_img": "portrait of a young brazilian woman looking pale and weak wrapping a blanket"},
-    {"queixa": "Trabalho, cuido da casa, dos filhos... tô me sentindo esgotada fisicamente e com a pele meio sem vida.", "produto_alvo": "Suprabio Mulher", "prompt_img": "portrait of a busy brazilian mother looking exhausted and overwhelmed"},
-    {"queixa": "Já passei dos 50 anos e sinto que meus ossos estão fracos e me falta energia pro dia a dia.", "produto_alvo": "Suprabio 50+", "prompt_img": "portrait of a brazilian senior citizen over 50 looking frail but active"},
-    {"queixa": "Minha mãe tem 68 anos e está comendo muito mal. Quase não come carne e tá ficando muito fraquinha.", "produto_alvo": "Suprabio 50+", "prompt_img": "portrait of a concerned adult daughter talking about her elderly mother"},
-    {"queixa": "Meu pai tá com 75 anos, almoça que é um passarinho. Tô com medo dele ficar desnutrido ou perder músculo.", "produto_alvo": "Suprabio 50+", "prompt_img": "portrait of a concerned adult son talking about his elderly father"},
-    {"queixa": "Olha o estado da minha unha! Tá quebrando igual papel. E meu cabelo cai muito no banho.", "produto_alvo": "Suprabio Cabelos e Unhas", "prompt_img": "portrait of a brazilian woman showing brittle fingernails to camera"},
-    {"queixa": "Tirei aquele alongamento de gel e minha unha natural tá um papel, quebra só de encostar. Preciso fortalecer urgente.", "produto_alvo": "Suprabio Cabelos e Unhas", "prompt_img": "portrait of a brazilian woman looking frustrated at her damaged nails"},
-    {"queixa": "Tive dengue faz uns meses e agora meu cabelo tá caindo aos tufos, tô ficando desesperada.", "produto_alvo": "Suprabio Cabelos e Unhas", "prompt_img": "portrait of a brazilian woman holding a clump of fallen hair looking distressed"},
-    {"queixa": "Estou sentindo minha pele do rosto e dos braços muito flácida, perdendo a firmeza da juventude.", "produto_alvo": "Colágeno", "prompt_img": "portrait of a middle-aged brazilian woman touching her cheek skin critically"},
-    {"queixa": "Emagreci bastante nos últimos meses, mas agora tô sentindo a pele do rosto meio caída, sabe? Queria algo de dentro pra fora.", "produto_alvo": "Colágeno", "prompt_img": "portrait of a brazilian person who lost weight pinching saggy skin on face"},
-    {"queixa": "Meu intestino é um relógio... parado! Fico 3 dias sem ir ao banheiro e me sinto inchada.", "produto_alvo": "Fibras ou Lactulose", "prompt_img": "portrait of a brazilian woman holding her bloated stomach looking uncomfortable"},
-    {"queixa": "Tenho hemorroida e sofro demais pra ir ao banheiro porque as fezes ficam muito ressecadas. Preciso amolecer isso urgente.", "produto_alvo": "Lactulose ou Fibras", "prompt_img": "portrait of a middle-aged brazilian man looking pained and uncomfortable sitting"},
-    {"queixa": "Eu não quero tomar purgante porque me dá cólica, mas minha barriga tá tão estufada que não fecha nem a calça. Queria algo natural pra uso diário.", "produto_alvo": "Fibras", "prompt_img": "portrait of a brazilian woman trying to zip tight jeans looking frustrated due to bloating"},
-    {"queixa": "Minha avó é acamada e o intestino dela é super preguiçoso. O médico falou de um xarope doce que não agride o estômago.", "produto_alvo": "Lactulose", "prompt_img": "portrait of a caregiver asking for medicine for an elderly bedridden patient"},
-    {"queixa": "Toda tarde minha visão fica cansada, embaçada, parece que forço muito pra ler.", "produto_alvo": "Luteína", "prompt_img": "portrait of a middle-aged brazilian person rubbing tired eyes while holding a book"},
-    {"queixa": "Fico o dia todo olhando pra tela do computador e do celular. No final do dia meu olho arde muito e fica seco.", "produto_alvo": "Luteína", "prompt_img": "portrait of a young adult brazilian office worker with red tired eyes looking at a screen"},
-    {"queixa": "Trabalho como motorista de aplicativo, rodo o dia todo. A claridade do sol e farol à noite tão me incomodando demais.", "produto_alvo": "Luteína", "prompt_img": "portrait of a brazilian ride-share driver in a car squinting bothered by light"}
+    {"queixa": "Moça, eu ando muito esquecido, a cabeça parece que não funciona direito e tô sem energia mental.", "produto_alvo": "Magnésio Dimalato ou Complexo B", "prompt_img": "portrait of a stressed middle-aged brazilian man rubbing his temples looking confused", "genero": "M", "idade": "adulto"},
+    {"queixa": "Minha memória tá terrível, esqueço onde coloquei a chave, o que ia falar... Queria algo pro cérebro e que fizesse bem pro coração.", "produto_alvo": "Ômega 3", "prompt_img": "portrait of an elderly brazilian woman looking forgetful and concerned", "genero": "F", "idade": "idoso"},
+    {"queixa": "Vou prestar concurso no fim do ano, mas sento pra estudar e não consigo focar, parece que dá um branco. Falaram que gordura de peixe é bom.", "produto_alvo": "Ômega 3", "prompt_img": "portrait of a young brazilian male student looking tired with books", "genero": "M", "idade": "jovem"},
+    {"queixa": "Sinto muitas cãibras na panturrilha de madrugada, acordo gemendo de dor. Tem alguma vitamina pra isso?", "produto_alvo": "Magnésio Dimalato ou Cloreto de Magnésio", "prompt_img": "portrait of an elderly brazilian man grimacing in pain holding his leg", "genero": "M", "idade": "idoso"},
+    {"queixa": "Acordo de manhã e parece que passou um caminhão em cima de mim. O corpo todo dolorido, pesado, uma canseira muscular crônica.", "produto_alvo": "Magnésio Dimalato", "prompt_img": "portrait of a middle-aged brazilian woman looking exhausted and sore", "genero": "F", "idade": "adulto"},
+    {"queixa": "Tenho sentido muita dor nas articulações, meu joelho estala quando subo escada. Tem algo pra 'lubrificar'?", "produto_alvo": "Cloreto de Magnésio ou Colágeno", "prompt_img": "portrait of an older brazilian woman pointing to her knee with a pained expression", "genero": "F", "idade": "idoso"},
+    {"queixa": "Tenho uns bicos de papagaio na coluna e acordo com as juntas todas travadas, duro igual um robô.", "produto_alvo": "Cloreto de Magnésio", "prompt_img": "portrait of an older brazilian man moving stiffly holding his back", "genero": "M", "idade": "idoso"},
+    {"queixa": "Tenho um esporão no calcanhar que me mata de dor quando piso no chão de manhã. Me falaram de um suplemento que desfaz isso.", "produto_alvo": "Cloreto de Magnésio", "prompt_img": "portrait of a middle-aged brazilian woman wincing while standing", "genero": "F", "idade": "adulto"},
+    {"queixa": "Fiz um exame e deu osteopenia. O médico mandou tomar cálcio, mas disseram que tem um que vai direto pro osso.", "produto_alvo": "Cálcio MDK", "prompt_img": "portrait of a concerned post-menopausal brazilian woman holding an exam result", "genero": "F", "idade": "idoso"},
+    {"queixa": "As mulheres da minha família têm histórico de osteoporose. Eu já passei dos 40 e queria começar a prevenir desde já.", "produto_alvo": "Cálcio MDK", "prompt_img": "portrait of a brazilian woman in her 40s looking proactive and health-conscious", "genero": "F", "idade": "adulto"},
+    {"queixa": "Tomei um tombo bobo e trinquei o osso do braço. Queria um suplemento pra ajudar a colar esse osso mais rápido e fortificar.", "produto_alvo": "Cálcio MDK", "prompt_img": "portrait of a young adult brazilian person with an arm sling looking impatient", "genero": "M", "idade": "jovem"},
+    {"queixa": "Eu deito na cama e fico rolando. O corpo cansa, mas a mente não desliga. Queria algo natural pra dormir.", "produto_alvo": "Melatonina ou Clamvit Zen", "prompt_img": "portrait of a brazilian woman with dark circles under eyes looking sleepless", "genero": "F", "idade": "adulto"},
+    {"queixa": "Eu viajo muito a trabalho e meu fuso horário vira uma bagunça, perco totalmente a hora de dormir.", "produto_alvo": "Melatonina", "prompt_img": "portrait of a brazilian businessman in a suit looking jet-lagged with luggage", "genero": "M", "idade": "adulto"},
+    {"queixa": "Eu até pego no sono rápido, mas acordo umas 3 da manhã e fico com o olho arregalado até clarear o dia. Tô um zumbi.", "produto_alvo": "Melatonina", "prompt_img": "portrait of a tired brazilian man with wide eyes looking desperate", "genero": "M", "idade": "adulto"},
+    {"queixa": "Trabalho por turno, uma semana de dia, outra de madrugada. Meu relógio biológico pifou, não durmo direito em horário nenhum.", "produto_alvo": "Melatonina", "prompt_img": "portrait of a shift worker brazilian woman in uniform looking exhausted", "genero": "F", "idade": "adulto"},
+    {"queixa": "Tô muito estressado, pavio curto, qualquer coisa eu explodo. Queria algo pra acalmar sem dar sono.", "produto_alvo": "Clamvit Zen", "prompt_img": "portrait of a tense middle-aged brazilian man looking irritable and stressed", "genero": "M", "idade": "adulto"},
+    {"queixa": "Estou numa ansiedade terrível por conta de problemas na família. Meu coração até acelera, mas tenho pavor de tomar tarja preta.", "produto_alvo": "Clamvit Zen", "prompt_img": "portrait of an anxious brazilian woman clutching her chest looking worried", "genero": "F", "idade": "adulto"},
+    {"queixa": "Tenho sentido um aperto no peito e um nó na garganta de tanta ansiedade com as provas da faculdade, mas não posso tomar remédio que dopa.", "produto_alvo": "Clamvit Zen", "prompt_img": "portrait of a young university brazilian student looking overwhelmed and anxious", "genero": "M", "idade": "jovem"},
+    {"queixa": "Tô sentindo uma fraqueza no coração, me sinto muito cansado depois que fiz 40 anos. O médico falou de uma vitamina pro coração.", "produto_alvo": "Coenzima Q10", "prompt_img": "portrait of a man over 40 brazilian looking out of breath holding chest", "genero": "M", "idade": "adulto"},
+    {"queixa": "Comecei a tomar estatina pra colesterol e agora sinto muita dor muscular, parece que fui atropelado. O médico falou de um suplemento.", "produto_alvo": "Coenzima Q10", "prompt_img": "portrait of an older brazilian man rubbing his arm muscle in pain", "genero": "M", "idade": "idoso"},
+    {"queixa": "Tenho muita enxaqueca e o médico disse que tem um suplemento que dá energia para as células e ajuda a diminuir as crises.", "produto_alvo": "Coenzima Q10", "prompt_img": "portrait of a brazilian woman holding her head in pain with migraine", "genero": "F", "idade": "adulto"},
+    {"queixa": "Tive uma infecção forte há uns meses e parece que minha bateria nunca mais voltou aos 100%. Qualquer esforço já me deixa ofegante.", "produto_alvo": "Coenzima Q10", "prompt_img": "portrait of a person recovering from illness brazilian looking weak and tired", "genero": "F", "idade": "adulto"},
+    {"queixa": "Sinto um formigamento constante nas mãos e nos pés, além de um cansaço que não passa com nada.", "produto_alvo": "Complexo B", "prompt_img": "portrait of a brazilian woman looking at her tingling hands with concern", "genero": "F", "idade": "adulto"},
+    {"queixa": "Sou diabético e ultimamente tenho sentido umas pontadas e uma queimação esquisita na sola dos pés.", "produto_alvo": "Complexo B", "prompt_img": "portrait of an older diabetic brazilian man looking worried about his feet", "genero": "M", "idade": "idoso"},
+    {"queixa": "Tô bebendo muita bebida alcoólica nos finais de semana e sinto que meu fígado e meus nervos tão pedindo arrego.", "produto_alvo": "Complexo B", "prompt_img": "portrait of a middle-aged brazilian man looking hungover and regretful", "genero": "M", "idade": "adulto"},
+    {"queixa": "Minha boca tá cheia de afta e eu pego resfriado toda semana. Minha imunidade deve estar no chão.", "produto_alvo": "Vitamina C ou Suprabio A-Z", "prompt_img": "portrait of a young brazilian person showing a mouth sore looking sickly", "genero": "F", "idade": "jovem"},
+    {"queixa": "Meu nariz vive escorrendo. Basta o tempo mudar um pouquinho ou bater um vento gelado que eu já fico resfriada.", "produto_alvo": "Vitamina C", "prompt_img": "portrait of a brazilian woman with a runny nose using a tissue", "genero": "F", "idade": "adulto"},
+    {"queixa": "Sinto que minha garganta arranha por qualquer friagem. E também demora muito pra cicatrizar qualquer machucadinho.", "produto_alvo": "Vitamina C", "prompt_img": "portrait of a person checking a slow-healing small cut on hand", "genero": "M", "idade": "jovem"},
+    {"queixa": "Tô me sentindo fraco, sem disposição pra trabalhar. Sou homem, tenho 35 anos, queria um tônico geral.", "produto_alvo": "Suprabio Homem", "prompt_img": "portrait of a 35 year old brazilian man in work clothes looking unmotivated and tired", "genero": "M", "idade": "adulto"},
+    {"queixa": "Trabalho o dia inteiro sentado no computador, chego em casa exausto, sem pique nem pra brincar com meus filhos.", "produto_alvo": "Suprabio Homem", "prompt_img": "portrait of a tired brazilian father in office shirt sitting slumped", "genero": "M", "idade": "adulto"},
+    {"queixa": "A rotina tá tão puxada que chego à noite em casa sem vontade de nada, até minha libido caiu por falta de ânimo físico.", "produto_alvo": "Suprabio Homem", "prompt_img": "portrait of a stressed brazilian man looking downcast and lacking energy", "genero": "M", "idade": "adulto"},
+    {"queixa": "Menina, tô na menopausa, sentindo uns calores e muito desânimo. Tem alguma vitamina completa pra mulher?", "produto_alvo": "Suprabio Mulher", "prompt_img": "portrait of a middle-aged brazilian woman fanning herself looking uncomfortable with hot flash", "genero": "F", "idade": "adulto"},
+    {"queixa": "Meu fluxo menstrual é muito intenso e depois eu fico uns dias me arrastando, pálida e sem força nenhuma.", "produto_alvo": "Suprabio Mulher ou Complexo B", "prompt_img": "portrait of a young brazilian woman looking pale and weak wrapping a blanket", "genero": "F", "idade": "jovem"},
+    {"queixa": "Trabalho, cuido da casa, dos filhos... tô me sentindo esgotada fisicamente e com a pele meio sem vida.", "produto_alvo": "Suprabio Mulher", "prompt_img": "portrait of a busy brazilian mother looking exhausted and overwhelmed", "genero": "F", "idade": "adulto"},
+    {"queixa": "Já passei dos 50 anos e sinto que meus ossos estão fracos e me falta energia pro dia a dia.", "produto_alvo": "Suprabio 50+", "prompt_img": "portrait of a brazilian senior citizen over 50 looking frail but active", "genero": "F", "idade": "idoso"},
+    {"queixa": "Minha mãe tem 68 anos e está comendo muito mal. Quase não come carne e tá ficando muito fraquinha.", "produto_alvo": "Suprabio 50+", "prompt_img": "portrait of a concerned adult daughter talking about her elderly mother", "genero": "F", "idade": "adulto"},
+    {"queixa": "Meu pai tá com 75 anos, almoça que é um passarinho. Tô com medo dele ficar desnutrido ou perder músculo.", "produto_alvo": "Suprabio 50+", "prompt_img": "portrait of a concerned adult son talking about his elderly father", "genero": "M", "idade": "adulto"},
+    {"queixa": "Olha o estado da minha unha! Tá quebrando igual papel. E meu cabelo cai muito no banho.", "produto_alvo": "Suprabio Cabelos e Unhas", "prompt_img": "portrait of a brazilian woman showing brittle fingernails to camera", "genero": "F", "idade": "adulto"},
+    {"queixa": "Tirei aquele alongamento de gel e minha unha natural tá um papel, quebra só de encostar. Preciso fortalecer urgente.", "produto_alvo": "Suprabio Cabelos e Unhas", "prompt_img": "portrait of a brazilian woman looking frustrated at her damaged nails", "genero": "F", "idade": "adulto"},
+    {"queixa": "Tive dengue faz uns meses e agora meu cabelo tá caindo aos tufos, tô ficando desesperada.", "produto_alvo": "Suprabio Cabelos e Unhas", "prompt_img": "portrait of a brazilian woman holding a clump of fallen hair looking distressed", "genero": "F", "idade": "adulto"},
+    {"queixa": "Estou sentindo minha pele do rosto e dos braços muito flácida, perdendo a firmeza da juventude.", "produto_alvo": "Colágeno", "prompt_img": "portrait of a middle-aged brazilian woman touching her cheek skin critically", "genero": "F", "idade": "adulto"},
+    {"queixa": "Emagreci bastante nos últimos meses, mas agora tô sentindo a pele do rosto meio caída, sabe? Queria algo de dentro pra fora.", "produto_alvo": "Colágeno", "prompt_img": "portrait of a brazilian person who lost weight pinching saggy skin on face", "genero": "F", "idade": "adulto"},
+    {"queixa": "Meu intestino é um relógio... parado! Fico 3 dias sem ir ao banheiro e me sinto inchada.", "produto_alvo": "Fibras ou Lactulose", "prompt_img": "portrait of a brazilian woman holding her bloated stomach looking uncomfortable", "genero": "F", "idade": "adulto"},
+    {"queixa": "Tenho hemorroida e sofro demais pra ir ao banheiro porque as fezes ficam muito ressecadas. Preciso amolecer isso urgente.", "produto_alvo": "Lactulose ou Fibras", "prompt_img": "portrait of a middle-aged brazilian man looking pained and uncomfortable sitting", "genero": "M", "idade": "adulto"},
+    {"queixa": "Eu não quero tomar purgante porque me dá cólica, mas minha barriga tá tão estufada que não fecha nem a calça. Queria algo natural pra uso diário.", "produto_alvo": "Fibras", "prompt_img": "portrait of a brazilian woman trying to zip tight jeans looking frustrated due to bloating", "genero": "F", "idade": "adulto"},
+    {"queixa": "Minha avó é acamada e o intestino dela é super preguiçoso. O médico falou de um xarope doce que não agride o estômago.", "produto_alvo": "Lactulose", "prompt_img": "portrait of a caregiver asking for medicine for an elderly bedridden patient", "genero": "F", "idade": "adulto"},
+    {"queixa": "Toda tarde minha visão fica cansada, embaçada, parece que forço muito pra ler.", "produto_alvo": "Luteína", "prompt_img": "portrait of a middle-aged brazilian person rubbing tired eyes while holding a book", "genero": "M", "idade": "adulto"},
+    {"queixa": "Fico o dia todo olhando pra tela do computador e do celular. No final do dia meu olho arde muito e fica seco.", "produto_alvo": "Luteína", "prompt_img": "portrait of a young adult brazilian office worker with red tired eyes looking at a screen", "genero": "F", "idade": "jovem"},
+    {"queixa": "Trabalho como motorista de aplicativo, rodo o dia todo. A claridade do sol e farol à noite tão me incomodando demais.", "produto_alvo": "Luteína", "prompt_img": "portrait of a brazilian ride-share driver in a car squinting bothered by light", "genero": "M", "idade": "adulto"}
 ]
 
 # --- FUNÇÕES ---
@@ -181,24 +180,20 @@ def salvar_sessao(dados):
 
 @st.cache_resource
 def encontrar_modelo():
-    """Busca dinâmica atualizada (2026): Prioriza 2.5 Flash, usa 2.0 ou 1.5 como fallback seguro."""
     if not API_KEY: return None
     try:
         modelos_disponiveis = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        if not modelos_disponiveis: return None
-
-        # Prioridade 1: O modelo 2.5 mais recente (Flash)
+        modelos_seguros = [
+            "models/gemini-1.5-flash", "models/gemini-1.5-flash-latest",
+            "models/gemini-1.5-flash-002", "models/gemini-1.5-pro", "models/gemini-pro"
+        ]
+        for modelo in modelos_seguros:
+            if modelo in modelos_disponiveis: return modelo
         for m in modelos_disponiveis:
-            if "2.5-flash" in m: return m
-            
-        # Prioridade 2: O modelo 2.0 (se o 2.5 não tiver na cota)
-        for m in modelos_disponiveis:
-            if "2.0-flash" in m: return m
-            
-        # Fallback: Qualquer modelo mais recente (evitando depreciados)
-        return modelos_disponiveis[-1]
+            if "flash" in m and "preview" not in m and "robotics" not in m: return m
+        return "models/gemini-1.5-flash"
     except: 
-        return "models/gemini-2.5-flash" # Fallback forte em caso de erro na lista
+        return "models/gemini-1.5-flash"
 
 MODELO_NOME = encontrar_modelo()
 
@@ -221,7 +216,6 @@ def transcrever_audio_para_texto(audio_file):
                 return "Erro: Nenhum modelo de IA encontrado."
                 
             mime_limpo = audio_file.type.split(';')[0] if audio_file.type else 'audio/wav'
-            
             if mime_limpo == "audio/mp4" or mime_limpo == "audio/m4a":
                 mime_limpo = "audio/mp4"
 
@@ -232,20 +226,19 @@ def transcrever_audio_para_texto(audio_file):
             ])
             
             texto = res.text.strip()
-            if not texto:
-                return "Áudio incompreensível ou vazio."
+            if not texto: return "Áudio incompreensível ou vazio."
             return texto
-
         except Exception as e:
             st.error(f"Erro do Google Gemini ao ler o áudio: {e}")
             return None
 
-def gerar_audio_cliente(texto, prompt_imagem=""):
+def gerar_audio_cliente(texto, genero="F"):
     try:
-        if "man " in prompt_imagem or "father" in prompt_imagem or "male" in prompt_imagem:
-            voz = "pt-BR-AntonioNeural"
+        # ATUALIZAÇÃO IMPORTANTE NA SELEÇÃO DA VOZ COM BASE NO GÊNERO CORRETO!
+        if genero == "M":
+            voz = "pt-BR-AntonioNeural" # Masculino
         else:
-            voz = "pt-BR-FranciscaNeural"
+            voz = "pt-BR-FranciscaNeural" # Feminino
             
         resultado = []
         
@@ -285,13 +278,12 @@ def gerar_audio_cliente(texto, prompt_imagem=""):
 if "equipe" not in st.session_state: st.session_state.equipe = carregar_equipe()
 if "historico_chat" not in st.session_state: st.session_state.historico_chat = []
 if "turno" not in st.session_state: st.session_state.turno = 1
-# [NOVO] Aumentado para 4 interações (turnos)
 MAX_TURNOS = 4
 if "produto_alvo" not in st.session_state: st.session_state.produto_alvo = ""
 if "nota" not in st.session_state: st.session_state.nota = 0.0
 if "feedback" not in st.session_state: st.session_state.feedback = ""
 if "imagem_cliente" not in st.session_state: st.session_state.imagem_cliente = None
-if "prompt_atual" not in st.session_state: st.session_state.prompt_atual = ""
+if "caso_atual" not in st.session_state: st.session_state.caso_atual = None
 if "casos_disponiveis" not in st.session_state: st.session_state.casos_disponiveis = CASOS_REAIS.copy()
 
 # ==========================================
@@ -383,13 +375,16 @@ if colaborador != "Clique aqui para selecionar...":
             caso = random.choice(st.session_state.casos_disponiveis)
             st.session_state.casos_disponiveis.remove(caso)
             
+            st.session_state.caso_atual = caso
             prompt_bruto = caso.get("prompt_img", "portrait of a brazilian person in a pharmacy")
-            st.session_state.prompt_atual = prompt_bruto
+            genero_caso = caso.get("genero", "F")
             
             with st.spinner("O cliente está entrando na farmácia..."):
                 imagem_bytes = gerar_imagem_cliente_segura(prompt_bruto)
                 st.session_state.imagem_cliente = imagem_bytes
-                audio_bytes = gerar_audio_cliente(caso["queixa"], prompt_bruto)
+                
+                # CHAMA O ÁUDIO PASSANDO O GÊNERO CORRETO AGORA!
+                audio_bytes = gerar_audio_cliente(caso["queixa"], genero=genero_caso)
                 
                 st.session_state.historico_chat = [{"role": "Cliente", "text": caso["queixa"], "audio": audio_bytes}]
                 st.session_state.produto_alvo = caso["produto_alvo"]
@@ -424,7 +419,6 @@ if colaborador != "Clique aqui para selecionar...":
             
             col1, col2 = st.columns(2)
             with col1:
-                # [MODIFICADO] Lógica de 4 turnos
                 if st.session_state.turno < MAX_TURNOS:
                     if st.button("🗣️ RESPONDER E CONTINUAR"):
                         resposta_final = ""
@@ -440,7 +434,6 @@ if colaborador != "Clique aqui para selecionar...":
                                 st.session_state.historico_chat.append({"role": "Vendedor", "text": resposta_final})
                                 texto_conversa = "\n".join([f"{m['role']}: {m['text']}" for m in st.session_state.historico_chat])
                                 
-                                # [NOVO] PROMPT DO CLIENTE TURBINADO COM RAG E AVALIAÇÃO DE CONTEXTO
                                 prompt_cliente = f"""
                                 {BASE_RAG_SUPRABIO}
                                 
@@ -461,7 +454,10 @@ if colaborador != "Clique aqui para selecionar...":
                                     model = genai.GenerativeModel(MODELO_NOME)
                                     res_cliente = model.generate_content(prompt_cliente)
                                     texto_resposta_cliente = res_cliente.text.strip()
-                                    audio_bytes = gerar_audio_cliente(texto_resposta_cliente, st.session_state.prompt_atual)
+                                    
+                                    # CHAMA O ÁUDIO PASSANDO O GÊNERO CORRETO AQUI TAMBÉM!
+                                    genero_caso = st.session_state.caso_atual.get("genero", "F")
+                                    audio_bytes = gerar_audio_cliente(texto_resposta_cliente, genero=genero_caso)
                                     
                                     st.session_state.historico_chat.append({"role": "Cliente", "text": texto_resposta_cliente, "audio": audio_bytes})
                                     st.session_state.turno += 1
@@ -487,7 +483,6 @@ if colaborador != "Clique aqui para selecionar...":
                             st.session_state.historico_chat.append({"role": "Vendedor", "text": resposta_final})
                             texto_conversa_final = "\n".join([f"{m['role']}: {m['text']}" for m in st.session_state.historico_chat])
                             
-                            # [NOVO] PROMPT DO AVALIADOR TURBINADO COM RAG
                             prompt_aval = f"""
                             {BASE_RAG_SUPRABIO}
                             
@@ -540,10 +535,12 @@ if colaborador != "Clique aqui para selecionar...":
                     st.session_state.historico_chat = []
                     st.session_state.feedback = ""
                     st.session_state.imagem_cliente = None
+                    st.session_state.caso_atual = None
                     st.rerun()
             with col_discard:
                 if st.button("🗑️ DESCARTAR"):
                     st.session_state.historico_chat = []
                     st.session_state.feedback = ""
                     st.session_state.imagem_cliente = None
+                    st.session_state.caso_atual = None
                     st.rerun()
